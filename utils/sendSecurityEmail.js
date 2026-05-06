@@ -1,0 +1,122 @@
+const nodemailer = require("nodemailer");
+const EmailAction = require("../models/smartlogin/EmailAction");
+
+const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
+
+const sendSecurityAlert = async (
+  userEmail,
+  ip,
+  location,
+  attempts,
+  ownerId,
+  websiteId,
+  device = "Unknown Device",
+  isLocked = false,
+  blockToken = "",
+  resetToken = "",
+  attackType = "Brute Force"
+) => {
+  try {
+    await EmailAction.create({
+      email: userEmail,
+      ownerId,
+      websiteId,
+      actionType: isLocked ? "block" : "warning",
+      status: "sent",
+      timestamp: new Date()
+    });
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const blockUrl = `${BASE_URL}/api/auth/block-ip?token=${blockToken}`;
+    const resetUrl = `${BASE_URL}/api/auth/reset-attempts?token=${resetToken}`;
+
+    let subject = isLocked 
+      ? `🚨 ThreatGuard: Account Locked (${attempts} Failed Attempts)` 
+      : `⚠️ ThreatGuard: Unrecognized Login Attempts`;
+    
+    let alertTitle = "ThreatGuard Security Alert";
+    let alertMessage = "We've detected multiple failed login attempts on your account.";
+    let attemptsLabel = "Attempts:";
+    let severity = isLocked ? "HIGH" : "MEDIUM";
+
+    if (attackType === "Password Spraying") {
+      subject = "Password Spraying Attack Detected";
+      alertTitle = "Password Spraying Detected";
+      alertMessage = `A Password Spraying attack was detected from IP ${ip} targeting multiple accounts on your website.`;
+      attemptsLabel = "Targeted Accounts:";
+      severity = "HIGH";
+    }
+
+    let htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+        <div style="background: #111827; color: #fff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">${alertTitle}</h2>
+        </div>
+        <div style="padding: 20px; color: #374151;">
+          <p>${alertMessage}</p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr><td style="padding: 8px; font-weight: bold; width: 150px;">${attemptsLabel}</td><td style="padding: 8px; color: #dc2626; font-weight: bold;">${attempts}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Origin IP:</td><td style="padding: 8px;"><code>${ip}</code></td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Location:</td><td style="padding: 8px;">${location.city}, ${location.country}</td></tr>
+            ${attackType === "Password Spraying" 
+              ? `<tr><td style="padding: 8px; font-weight: bold;">Severity:</td><td style="padding: 8px; color: #dc2626; font-weight: bold;">${severity}</td></tr>`
+              : !isLocked ? `<tr><td style="padding: 8px; font-weight: bold;">Device:</td><td style="padding: 8px;">${device}</td></tr>` : ""
+            }
+            <tr><td style="padding: 8px; font-weight: bold;">Time:</td><td style="padding: 8px;">${new Date().toLocaleString()}</td></tr>
+          </table>
+    `;
+
+    if (attackType === "Password Spraying") {
+      htmlContent += `
+          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 5px 0; color: #991b1b;">ADMIN ACTION REQUIRED</h4>
+            <p style="margin: 0; font-size: 14px; color: #7f1d1d;">This IP is systematically testing the same password across multiple accounts. Monitoring is active, but manual IP block is recommended via the ThreatGuard dashboard.</p>
+          </div>
+      `;
+    } else if (isLocked) {
+      htmlContent += `
+          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 5px 0; color: #991b1b;">ACCOUNT LOCKED</h4>
+            <p style="margin: 0; font-size: 14px; color: #7f1d1d;">Due to excessive failed attempts (${attempts}), your account has been temporarily locked to protect your data. The originating IP has been added to the blocklist.</p>
+          </div>
+      `;
+    } else {
+      htmlContent += `
+          <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <a href="${blockUrl}" style="background-color: #dc2626; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">Block this IP</a>
+            <a href="${resetUrl}" style="background-color: #10b981; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">It's Me</a>
+          </div>
+      `;
+    }
+
+    htmlContent += `
+        </div>
+        <div style="background: #f3f4f6; color: #6b7280; text-align: center; padding: 10px; font-size: 12px;">
+          This is an automated alert generated by ThreatGuard.
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: userEmail,
+      subject: subject,
+      html: htmlContent
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Security alert email sent to ${userEmail} (Type: ${attackType}, Locked: ${isLocked})`);
+
+  } catch (error) {
+    console.error("❌ Email alert error:", error.message);
+  }
+};
+
+module.exports = sendSecurityAlert;
