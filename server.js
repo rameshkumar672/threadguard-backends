@@ -84,7 +84,9 @@
 const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
-const connectDB = require("./config/db");
+
+// FIX: connectDB function nahi hai, destructure connections import karo
+const { tgConnection, slConnection } = require("./config/db");
 
 const http = require("http");
 const { Server } = require("socket.io");
@@ -100,19 +102,16 @@ const locationMiddleware = require("./middleware/locationMiddleware");
 
 const app = express();
 
-// ================= DB CONNECT =================
-connectDB();
-
 // ================= CORS =================
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  "https://threadguard-frontend.vercel.app" // agar frontend deploy hai to yahan actual frontend URL daalna
+  "https://threadguard-frontend.vercel.app"
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // browser/postman/no-origin requests allow
+    // Allow Postman / no-origin requests
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
@@ -129,7 +128,7 @@ const corsOptions = {
 // Apply CORS
 app.use(cors(corsOptions));
 
-// Handle preflight
+// Handle preflight requests
 app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
@@ -183,7 +182,7 @@ app.use(
   protectionRoutes
 );
 
-// ================= TEST =================
+// ================= TEST ROUTE =================
 app.get("/", (req, res) => {
   res.status(200).send("ThreatGuard Backend is running 🚀");
 });
