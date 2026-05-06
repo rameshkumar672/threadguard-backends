@@ -101,16 +101,18 @@ const locationMiddleware = require("./middleware/locationMiddleware");
 const app = express();
 
 // ================= CORS =================
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000"
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-  })
-);
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+};
+
+// Apply CORS to all routes
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options("*", cors(corsOptions));
 
 app.use(express.json());
 
@@ -123,11 +125,9 @@ const server = http.createServer(app);
 // ================= SOCKET.IO =================
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000"
-    ],
+    origin: "*",
     methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
   }
 });
@@ -150,18 +150,18 @@ io.on("connection", (socket) => {
 // ================= ROUTES =================
 const threatguardRoutes = require("./routes/threatguardRoutes");
 
-// ThreatGuard Owner Auth (NO attack detection — pure login/register)
+// ThreatGuard Owner Auth
 app.use("/api/threatguard", threatguardRoutes);
 
 // SmartLogin Auth
 app.use("/api/auth", authRoutes);
 
-// Dashboard data APIs (secured by JWT in each route)
+// Dashboard APIs
 app.use("/api/security", securityRoutes);
 app.use("/api/websites", websiteRoutes);
 app.use("/api/reports", reportRoutes);
 
-// Protection API: for external websites to report login attempts
+// Protection API
 app.use(
   "/api/protect",
   locationMiddleware,
