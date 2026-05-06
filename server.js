@@ -103,11 +103,12 @@ const locationMiddleware = require("./middleware/locationMiddleware");
 const app = express();
 
 // ================= CORS =================
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://threadguard-frontend.vercel.app"
-];
+// const allowedOrigins = [
+//   "http://localhost:5173",
+//   "http://localhost:3000",
+//   "https://threadguard-frontend.vercel.app"
+// ];
+const allowedOrigins = process.env.CORS_ORIGIN.split(",");
 
 const corsOptions = {
   origin: function (origin, callback) {
