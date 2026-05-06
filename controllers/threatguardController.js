@@ -15,6 +15,8 @@ exports.registerOwner = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
     const exists = await Owner.findOne({ email: normalizedEmail });
+    console.log("EMAIL RECEIVED:", normalizedEmail);
+    console.log("OWNER FOUND:", owner ? "YES" : "NO");
     if (exists) {
       return res.status(400).json({
         message: "Account already exists with this email."
@@ -58,6 +60,7 @@ exports.loginOwner = async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, owner.password);
+    console.log("PASSWORD MATCH:", isMatch);
 
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
