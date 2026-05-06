@@ -1,7 +1,8 @@
 const nodemailer = require("nodemailer");
 const EmailAction = require("../models/smartlogin/EmailAction");
 
-const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
+// const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
+const BASE_URL = process.env.BASE_URL || "https://threadguard-backends-production.up.railway.app";
 
 const sendSecurityAlert = async (
   userEmail,
@@ -37,10 +38,10 @@ const sendSecurityAlert = async (
     const blockUrl = `${BASE_URL}/api/auth/block-ip?token=${blockToken}`;
     const resetUrl = `${BASE_URL}/api/auth/reset-attempts?token=${resetToken}`;
 
-    let subject = isLocked 
-      ? `🚨 ThreatGuard: Account Locked (${attempts} Failed Attempts)` 
+    let subject = isLocked
+      ? `🚨 ThreatGuard: Account Locked (${attempts} Failed Attempts)`
       : `⚠️ ThreatGuard: Unrecognized Login Attempts`;
-    
+
     let alertTitle = "ThreatGuard Security Alert";
     let alertMessage = "We've detected multiple failed login attempts on your account.";
     let attemptsLabel = "Attempts:";
@@ -65,10 +66,10 @@ const sendSecurityAlert = async (
             <tr><td style="padding: 8px; font-weight: bold; width: 150px;">${attemptsLabel}</td><td style="padding: 8px; color: #dc2626; font-weight: bold;">${attempts}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">Origin IP:</td><td style="padding: 8px;"><code>${ip}</code></td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">Location:</td><td style="padding: 8px;">${location.city}, ${location.country}</td></tr>
-            ${attackType === "Password Spraying" 
-              ? `<tr><td style="padding: 8px; font-weight: bold;">Severity:</td><td style="padding: 8px; color: #dc2626; font-weight: bold;">${severity}</td></tr>`
-              : !isLocked ? `<tr><td style="padding: 8px; font-weight: bold;">Device:</td><td style="padding: 8px;">${device}</td></tr>` : ""
-            }
+            ${attackType === "Password Spraying"
+        ? `<tr><td style="padding: 8px; font-weight: bold;">Severity:</td><td style="padding: 8px; color: #dc2626; font-weight: bold;">${severity}</td></tr>`
+        : !isLocked ? `<tr><td style="padding: 8px; font-weight: bold;">Device:</td><td style="padding: 8px;">${device}</td></tr>` : ""
+      }
             <tr><td style="padding: 8px; font-weight: bold;">Time:</td><td style="padding: 8px;">${new Date().toLocaleString()}</td></tr>
           </table>
     `;
