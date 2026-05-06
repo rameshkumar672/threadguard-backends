@@ -103,34 +103,35 @@ const locationMiddleware = require("./middleware/locationMiddleware");
 const app = express();
 
 // ================= CORS =================
-// const allowedOrigins = [
-//   "http://localhost:5173",
-//   "http://localhost:3000",
-//   "https://threadguard-frontend.vercel.app"
-// ];
-const allowedOrigins = process.env.CORS_ORIGIN.split(",");
+// Safely parse origins, handle spaces, and remove trailing slashes
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(",").map(url => url.trim().replace(/\/$/, "")) 
+  : [];
 
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow Postman / no-origin requests
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
+    // Clean origin by removing trailing slash if any
+    const cleanOrigin = origin.replace(/\/$/, "");
+
+    if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes("*")) {
       callback(null, true);
     } else {
-      callback(new Error("CORS not allowed"));
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      // Do not throw an Error, otherwise Express error handler crashes the request and causes 502 in Railway
+      callback(null, false); 
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  credentials: true,
+  optionsSuccessStatus: 204
 };
 
-// Apply CORS
+// Apply CORS globally (handles preflight automatically)
 app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 
@@ -140,7 +141,16 @@ const server = http.createServer(app);
 // ================= SOCKET.IO =================
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      const cleanOrigin = origin.replace(/\/$/, "");
+      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes("*")) {
+        callback(null, true);
+      } else {
+        console.warn(`[Socket.io CORS] Blocked request from origin: ${origin}`);
+        callback(null, false);
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -186,6 +196,16 @@ app.use(
 // ================= TEST ROUTE =================
 app.get("/", (req, res) => {
   res.status(200).send("ThreatGuard Backend is running 🚀");
+});
+
+// ================= GLOBAL ERROR HANDLER =================
+app.use((err, req, res, next) => {
+  console.error("🔥 Unhandled Server Error:", err);
+  res.status(err.status || 500).json({ 
+    success: false, 
+    message: "Internal Server Error", 
+    error: err.message 
+  });
 });
 
 // ================= SERVER =================
