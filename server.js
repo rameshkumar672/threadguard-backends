@@ -100,25 +100,39 @@ const locationMiddleware = require("./middleware/locationMiddleware");
 
 const app = express();
 
+// ================= DB CONNECT =================
+connectDB();
+
 // ================= CORS =================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://threadguard-frontend.vercel.app" // agar frontend deploy hai to yahan actual frontend URL daalna
+];
+
 const corsOptions = {
-  origin: "*",
+  origin: function (origin, callback) {
+    // browser/postman/no-origin requests allow
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 };
 
-// Apply CORS to all routes
+// Apply CORS
 app.use(cors(corsOptions));
 
-// Handle preflight requests
-// app.options("*", cors(corsOptions));
+// Handle preflight
 app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
-
-// ================= DB CONNECT =================
-// Connections initialized automatically via models require declarations.
 
 // ================= HTTP SERVER =================
 const server = http.createServer(app);
@@ -126,9 +140,8 @@ const server = http.createServer(app);
 // ================= SOCKET.IO =================
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
   }
 });
@@ -172,7 +185,7 @@ app.use(
 
 // ================= TEST =================
 app.get("/", (req, res) => {
-  res.send("ThreatGuard Backend is running 🚀");
+  res.status(200).send("ThreatGuard Backend is running 🚀");
 });
 
 // ================= SERVER =================
